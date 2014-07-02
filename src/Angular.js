@@ -756,7 +756,9 @@ function isLeafNode (node) {
  </file>
  </example>
  */
-function copy(source, destination, stackSource, stackDest) {
+function copy(source, destination, flatten, stackSource, stackDest) {
+  flatten = !!flatten;
+
   if (isWindow(source) || isScope(source)) {
     throw ngMinErr('cpws',
       "Can't copy! Making copies of Window or Scope instances is not supported.");
@@ -766,14 +768,18 @@ function copy(source, destination, stackSource, stackDest) {
     destination = source;
     if (source) {
       if (isArray(source)) {
-        destination = copy(source, [], stackSource, stackDest);
+        destination = copy(source, [], flatten, stackSource, stackDest);
       } else if (isDate(source)) {
         destination = new Date(source.getTime());
       } else if (isRegExp(source)) {
         destination = new RegExp(source.source);
       } else if (isObject(source)) {
-        var emptyObject = Object.create(Object.getPrototypeOf(source));
-        destination = copy(source, emptyObject, stackSource, stackDest);
+        if (!flatten) {
+          var emptyObject = Object.create(Object.getPrototypeOf(source));
+          destination = copy(source, emptyObject, flatten, stackSource, stackDest);
+        } else {
+          destination = copy(source, {}, flatten, stackSource, stackDest);
+        }
       }
     }
   } else {
@@ -795,7 +801,7 @@ function copy(source, destination, stackSource, stackDest) {
     if (isArray(source)) {
       destination.length = 0;
       for ( var i = 0; i < source.length; i++) {
-        result = copy(source[i], null, stackSource, stackDest);
+        result = copy(source[i], null, flatten, stackSource, stackDest);
         if (isObject(source[i])) {
           stackSource.push(source[i]);
           stackDest.push(result);
@@ -807,9 +813,9 @@ function copy(source, destination, stackSource, stackDest) {
       forEach(destination, function(value, key) {
         delete destination[key];
       });
-      for ( var key in source) {
-        if(source.hasOwnProperty(key)) {
-          result = copy(source[key], null, stackSource, stackDest);
+      for (var key in source) {
+        if (flatten || source.hasOwnProperty(key)) {
+          result = copy(source[key], null, flatten, stackSource, stackDest);
           if (isObject(source[key])) {
             stackSource.push(source[key]);
             stackDest.push(result);
